@@ -1,2 +1,2 @@
 # P3A-Deep-Reinforcement-Learning
-Research project focusing on Deep Reinforcement.
+Research project focusing on Deep Reinforcement learning.
