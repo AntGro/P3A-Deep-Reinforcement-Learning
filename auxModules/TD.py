@@ -84,7 +84,7 @@ def routine(algo, nEpisode=2000, gamma=0.99, alpha=0.4, epsilon0=0.9, epsilonMin
     return q_table, histAcc
 
 
-def routineTh(algo, threshold=0.8, gamma=0.99, alpha=0.4, epsilon0=0.9, epsilonMin=0.05, decreaseRate=0.999,
+def routineTh(algo, threshold=0.8, nEpisodeMax = 30000, gamma=0.99, alpha=0.4, epsilon0=0.9, epsilonMin=0.05, decreaseRate=0.999,
               softmax=False, tau=0.01, window=100):
     accuracy = 0
     epsilon = epsilon0
@@ -93,7 +93,7 @@ def routineTh(algo, threshold=0.8, gamma=0.99, alpha=0.4, epsilon0=0.9, epsilonM
     histAcc = [0]
     episode = 0
 
-    while accuracy < threshold:
+    while accuracy < threshold and episode < nEpisodeMax:
         epsilon = max(epsilonMin, decreaseRate * epsilon)
         observation0 = env.reset()
         action0 = chooseAction(q_table, observation0, epsilon, softmax, tau)
@@ -126,14 +126,14 @@ def routineTh(algo, threshold=0.8, gamma=0.99, alpha=0.4, epsilon0=0.9, epsilonM
 def SARSA(nEpisode = 2000, gamma = 0.999, alpha = 0.4, epsilon0 = 0.9, epsilonMin = 0.05, decreaseRate = False, softmax = True, tau = 0.01, window = 100):
     return routine("SARSA", nEpisode, gamma, alpha, epsilon0, epsilonMin, decreaseRate, softmax, tau, window)
 
-def SARSATh(threshold = 0.8, gamma = 0.999, alpha = 0.4, epsilon0 = 0.9, epsilonMin = 0.05, decreaseRate = False, softmax = True, tau = 0.01, window = 100):
-    return routineTh("SARSA", threshold, gamma, alpha, epsilon0, epsilonMin, decreaseRate, softmax, tau, window)
+def SARSATh(threshold = 0.8, nEpisodeMax = 30000, gamma = 0.999, alpha = 0.4, epsilon0 = 0.9, epsilonMin = 0.05, decreaseRate = False, softmax = True, tau = 0.01, window = 100):
+    return routineTh("SARSA", threshold, nEpisodeMax, gamma, alpha, epsilon0, epsilonMin, decreaseRate, softmax, tau, window)
 
 def QLearning(nEpisode = 2000, gamma = 0.999, alpha = 0.4, epsilon0 = 0.9, epsilonMin = 0.05, decreaseRate = True, softmax = False, tau = 0.003, window = 100):
     return routine("QLearning", nEpisode, gamma, alpha, epsilon0, epsilonMin, decreaseRate, softmax, tau, window)
 
-def QLearningTh(threshold = 0.8, gamma = 0.999, alpha = 0.4, epsilon0 = 0.9, epsilonMin = 0.05, decreaseRate = False, softmax = True, tau = 0.01, window = 100):
-    return routineTh("QLearning", threshold, gamma, alpha, epsilon0, epsilonMin, decreaseRate, softmax, tau, window)
+def QLearningTh(threshold = 0.8, nEpisodeMax = 30000, gamma = 0.999, alpha = 0.4, epsilon0 = 0.9, epsilonMin = 0.05, decreaseRate = False, softmax = True, tau = 0.01, window = 100):
+    return routineTh("QLearning", threshold, nEpisodeMax, gamma, alpha, epsilon0, epsilonMin, decreaseRate, softmax, tau, window)
 
 def testPolicy (q_table, nEpisode = 2000):
     success = 0
