@@ -1,9 +1,9 @@
-import gym
 import numpy as np
+import pandas as pd
+from tqdm import tqdm
+import gym
 
-env = gym.make("FrozenLake8x8-v0")
-
-def chooseAction(q_table, state, epsilon=0, softmax=True, tau=0.01):
+def chooseAction(env, q_table, state, epsilon=0, softmax=True, tau=0.01):
     """Choose an action.
 
   Args:
@@ -25,7 +25,7 @@ def chooseAction(q_table, state, epsilon=0, softmax=True, tau=0.01):
     return env.action_space.sample()
 
 
-def routine(algo, nEpisode=2000, gamma=0.99, alpha=0.4, epsilon0=0.9, epsilonMin=0.05, decreaseRate=0.999,
+def routine(env, algo, nEpisode=2000, gamma=0.99, alpha=0.4, epsilon0=0.9, epsilonMin=0.05, decreaseRate=0.999,
             softmax=False, tau=0.01, window=100):
     """Body function used to implement both $SARSA$ and $Q$-Learning, since only the estimation of the error changes between the two methods.
 
@@ -54,11 +54,11 @@ def routine(algo, nEpisode=2000, gamma=0.99, alpha=0.4, epsilon0=0.9, epsilonMin
     for ep in range(nEpisode):
         epsilon = max(epsilonMin, decreaseRate * epsilon)
         observation0 = env.reset()
-        action0 = chooseAction(q_table, observation0, epsilon, softmax, tau)
+        action0 = chooseAction(env, q_table, observation0, epsilon, softmax, tau)
         done = False
         for H in range(200):
             observation1, reward, done, info = env.step(action0)
-            action1 = chooseAction(q_table, observation1, epsilon, softmax, tau)
+            action1 = chooseAction(env, q_table, observation1, epsilon, softmax, tau)
             err = reward - q_table[observation0, action0]
 
             if not done:
@@ -84,7 +84,8 @@ def routine(algo, nEpisode=2000, gamma=0.99, alpha=0.4, epsilon0=0.9, epsilonMin
     return q_table, histAcc
 
 
-def routineTh(algo, threshold=0.8, nEpisodeMax = 30000, gamma=0.99, alpha=0.4, epsilon0=0.9, epsilonMin=0.05, decreaseRate=0.999,
+def routineTh(env, algo, threshold=0.8, nEpisodeMax=30000, gamma=0.99, alpha=0.4, epsilon0=0.9, epsilonMin=0.05,
+              decreaseRate=0.999,
               softmax=False, tau=0.01, window=100):
     accuracy = 0
     epsilon = epsilon0
@@ -96,11 +97,11 @@ def routineTh(algo, threshold=0.8, nEpisodeMax = 30000, gamma=0.99, alpha=0.4, e
     while accuracy < threshold and episode < nEpisodeMax:
         epsilon = max(epsilonMin, decreaseRate * epsilon)
         observation0 = env.reset()
-        action0 = chooseAction(q_table, observation0, epsilon, softmax, tau)
+        action0 = chooseAction(env, q_table, observation0, epsilon, softmax, tau)
         done = False
         for H in range(200):
             observation1, reward, done, info = env.step(action0)
-            action1 = chooseAction(q_table, observation1, epsilon, softmax, tau)
+            action1 = chooseAction(env, q_table, observation1, epsilon, softmax, tau)
             err = reward - q_table[observation0, action0]
 
             if not done:
@@ -123,25 +124,36 @@ def routineTh(algo, threshold=0.8, nEpisodeMax = 30000, gamma=0.99, alpha=0.4, e
 
     return q_table, histAcc, episode
 
-def SARSA(nEpisode = 2000, gamma = 0.999, alpha = 0.4, epsilon0 = 0.9, epsilonMin = 0.05, decreaseRate = False, softmax = True, tau = 0.01, window = 100):
-    return routine("SARSA", nEpisode, gamma, alpha, epsilon0, epsilonMin, decreaseRate, softmax, tau, window)
 
-def SARSATh(threshold = 0.8, nEpisodeMax = 30000, gamma = 0.999, alpha = 0.4, epsilon0 = 0.9, epsilonMin = 0.05, decreaseRate = False, softmax = True, tau = 0.01, window = 100):
-    return routineTh("SARSA", threshold, nEpisodeMax, gamma, alpha, epsilon0, epsilonMin, decreaseRate, softmax, tau, window)
+def SARSA(env, nEpisode=2000, gamma=0.999, alpha=0.4, epsilon0=0.9, epsilonMin=0.05, decreaseRate=False, softmax=True,
+          tau=0.01, window=100):
+    return routine(env, "SARSA", nEpisode, gamma, alpha, epsilon0, epsilonMin, decreaseRate, softmax, tau, window)
 
-def QLearning(nEpisode = 2000, gamma = 0.999, alpha = 0.4, epsilon0 = 0.9, epsilonMin = 0.05, decreaseRate = True, softmax = False, tau = 0.003, window = 100):
-    return routine("QLearning", nEpisode, gamma, alpha, epsilon0, epsilonMin, decreaseRate, softmax, tau, window)
 
-def QLearningTh(threshold = 0.8, nEpisodeMax = 30000, gamma = 0.999, alpha = 0.4, epsilon0 = 0.9, epsilonMin = 0.05, decreaseRate = False, softmax = True, tau = 0.01, window = 100):
-    return routineTh("QLearning", threshold, nEpisodeMax, gamma, alpha, epsilon0, epsilonMin, decreaseRate, softmax, tau, window)
+def SARSATh(env, threshold=0.8, nEpisodeMax=40000, gamma=0.999, alpha=0.4, epsilon0=0.9, epsilonMin=0.05,
+            decreaseRate=1, softmax=True, tau=0.01, window=100):
+    return routineTh(env, "SARSA", threshold, nEpisodeMax, gamma, alpha, epsilon0, epsilonMin, decreaseRate, softmax,
+                     tau, window)
 
-def testPolicy (q_table, nEpisode = 2000):
+
+def QLearning(env, nEpisode=2000, gamma=0.999, alpha=0.4, epsilon0=0.9, epsilonMin=0.05, decreaseRate=1,
+              softmax=False, tau=0.003, window=100):
+    return routine(env, "QLearning", nEpisode, gamma, alpha, epsilon0, epsilonMin, decreaseRate, softmax, tau, window)
+
+
+def QLearningTh(env, threshold=0.8, nEpisodeMax=4000, gamma=0.999, alpha=0.4, epsilon0=0.9, epsilonMin=0.05,
+                decreaseRate=1, softmax=True, tau=0.01, window=100):
+    return routineTh(env, "QLearning", threshold, nEpisodeMax, gamma, alpha, epsilon0, epsilonMin, decreaseRate,
+                     softmax, tau, window)
+
+
+def testPolicy(env, q_table, nEpisode=2000):
     success = 0
     for _ in range(nEpisode):
         t = 0
         observation = env.reset()
-        done  = False
-        actionTable = np.argmax(q_table, axis = 1)
+        done = False
+        actionTable = np.argmax(q_table, axis=1)
         while not done and t < 200:
             action = actionTable[observation]
             observation, reward, done, info = env.step(action)
@@ -150,3 +162,75 @@ def testPolicy (q_table, nEpisode = 2000):
         if reward == 1:
             success += 1
     return success / nEpisode
+
+
+def compareMethods(envName, nEpisodeAccuracy=100, threshold=0.8, nEpisodeMax=2000, nIter=5, Eps=0.1 * np.arange(1, 10, 2),
+                   DR=[0.9, 0.99, 0.999], eps=0.9, Tau=[1, 0.1, 0.01, 0.001]):
+
+    env = env = gym.make(envName)
+
+    recap = pd.DataFrame(
+        columns=["Accuracy - SARSA", "Nb episodes - SARSA", "Accuracy - QLearning", "Nb episodes - QLearning"])
+
+    ## epsilon-greedy with fixed epsilon
+    print("epsilon-greedy with fixed epsilon")
+    for eps in tqdm(Eps):
+        sarsa = 0
+        sarsaEpisode = 0
+        ql = 0
+        qEpisode = 0
+        for _ in range(nIter):
+            q_table, histAcc, qEp = QLearningTh(env, threshold, epsilon0=eps, decreaseRate=1)
+            ql += testPolicy(env, q_table, nEpisodeAccuracy)
+            qEpisode += qEp
+            q_table, histAcc, sarsaEp = SARSATh(env, threshold, epsilon0=eps, decreaseRate=1)
+            sarsa += testPolicy(env, q_table, nEpisodeAccuracy)
+            sarsaEpisode += sarsaEp
+        sarsa /= nIter
+        sarsaEpisode /= nIter
+        qEpisode /= nIter
+        ql /= nIter
+        recap.loc["Fixed $\epsilon$ : $\epsilon$ = {}".format(round(eps, 2))] = [sarsa, sarsaEpisode, ql, qEpisode]
+
+    ## epsilon-greedy with decreasing epsilon
+    print("epsilon-greedy with decreasing epsilon")
+    for dr in tqdm(DR):
+        sarsa = 0
+        sarsaEpisode = 0
+        ql = 0
+        qEpisode = 0
+        for _ in range(nIter):
+            q_table, histAcc, qEp = QLearningTh(env, threshold, epsilon0=eps, decreaseRate=dr)
+            ql += testPolicy(env, q_table, nEpisodeAccuracy)
+            qEpisode += qEp
+            q_table, histAcc, sarsaEp = SARSATh(env, threshold, epsilon0=eps, decreaseRate=dr)
+            sarsa += testPolicy(env, q_table, nEpisodeAccuracy)
+            sarsaEpisode += sarsaEp
+        sarsa /= nIter
+        sarsaEpisode /= nIter
+        qEpisode /= nIter
+        ql /= nIter
+        recap.loc["Decaying-$\epsilon$ : decaying rate = {}".format(dr)] = [sarsa, sarsaEpisode, ql, qEpisode]
+
+    ##Softmax
+    print("Softmax")
+    for t in tqdm(Tau):
+        sarsa = 0
+        sarsaEpisode = 0
+        ql = 0
+        qEpisode = 0
+        for _ in range(nIter):
+            q_table, histAcc, qEp = QLearningTh(env, threshold, nEpisodeMax=nEpisodeMax, softmax=True, tau=t)
+            ql += testPolicy(env, q_table, nEpisodeAccuracy)
+            qEpisode += qEp
+            q_table, histAcc, sarsaEp = SARSATh(env, threshold, nEpisodeMax=nEpisodeMax, softmax=True, tau=t)
+            sarsa += testPolicy(env, q_table, nEpisodeAccuracy)
+            sarsaEpisode += sarsaEp
+        sarsa /= nIter
+        sarsaEpisode /= nIter
+        qEpisode /= nIter
+        ql /= nIter
+        recap.loc["Softmax : $\tau$ = {}".format(t)] = [sarsa, sarsaEpisode, ql, qEpisode]
+
+    #Save recap
+    recap.to_csv("output/" + envName + ".csv")
