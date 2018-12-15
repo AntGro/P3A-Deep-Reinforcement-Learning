@@ -3,6 +3,7 @@ import pandas as pd
 from tqdm import tqdm
 import gym
 
+
 def chooseAction(env, q_table, state, epsilon=0, softmax=True, tau=0.01):
     """Choose an action.
 
@@ -164,10 +165,10 @@ def testPolicy(env, q_table, nEpisode=2000):
     return success / nEpisode
 
 
-def compareMethods(envName, nEpisodeAccuracy=100, threshold=0.8, nEpisodeMax=2000, nIter=5, Eps=0.1 * np.arange(1, 10, 2),
+def compareMethods(envName, nEpisodeAccuracy=100, threshold=0.8, nEpisodeMax=2000, nIter=5,
+                   Eps=0.1 * np.arange(1, 10, 2),
                    DR=[0.9, 0.99, 0.999], eps=0.9, Tau=[1, 0.1, 0.01, 0.001]):
-
-    env = env = gym.make(envName)
+    env = gym.make(envName)
 
     recap = pd.DataFrame(
         columns=["Accuracy - SARSA", "Nb episodes - SARSA", "Accuracy - QLearning", "Nb episodes - QLearning"])
@@ -180,10 +181,10 @@ def compareMethods(envName, nEpisodeAccuracy=100, threshold=0.8, nEpisodeMax=200
         ql = 0
         qEpisode = 0
         for _ in range(nIter):
-            q_table, histAcc, qEp = QLearningTh(env, threshold, epsilon0=eps, decreaseRate=1)
+            q_table, histAcc, qEp = QLearningTh(env, threshold, nEpisodeMax=nEpisodeMax, epsilon0=eps, decreaseRate=1)
             ql += testPolicy(env, q_table, nEpisodeAccuracy)
             qEpisode += qEp
-            q_table, histAcc, sarsaEp = SARSATh(env, threshold, epsilon0=eps, decreaseRate=1)
+            q_table, histAcc, sarsaEp = SARSATh(env, threshold, nEpisodeMax=nEpisodeMax, epsilon0=eps, decreaseRate=1)
             sarsa += testPolicy(env, q_table, nEpisodeAccuracy)
             sarsaEpisode += sarsaEp
         sarsa /= nIter
@@ -200,10 +201,10 @@ def compareMethods(envName, nEpisodeAccuracy=100, threshold=0.8, nEpisodeMax=200
         ql = 0
         qEpisode = 0
         for _ in range(nIter):
-            q_table, histAcc, qEp = QLearningTh(env, threshold, epsilon0=eps, decreaseRate=dr)
+            q_table, histAcc, qEp = QLearningTh(env, threshold, epsilon0=eps, nEpisodeMax=nEpisodeMax, decreaseRate=dr)
             ql += testPolicy(env, q_table, nEpisodeAccuracy)
             qEpisode += qEp
-            q_table, histAcc, sarsaEp = SARSATh(env, threshold, epsilon0=eps, decreaseRate=dr)
+            q_table, histAcc, sarsaEp = SARSATh(env, threshold, epsilon0=eps, nEpisodeMax=nEpisodeMax, decreaseRate=dr)
             sarsa += testPolicy(env, q_table, nEpisodeAccuracy)
             sarsaEpisode += sarsaEp
         sarsa /= nIter
@@ -232,5 +233,5 @@ def compareMethods(envName, nEpisodeAccuracy=100, threshold=0.8, nEpisodeMax=200
         ql /= nIter
         recap.loc["Softmax : $\tau$ = {}".format(t)] = [sarsa, sarsaEpisode, ql, qEpisode]
 
-    #Save recap
+    # Save recap
     recap.to_csv("output/" + envName + ".csv")

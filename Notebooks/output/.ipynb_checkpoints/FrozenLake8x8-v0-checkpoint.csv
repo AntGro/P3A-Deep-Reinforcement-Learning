@@ -1,0 +1,13 @@
+,Accuracy - SARSA,Nb episodes - SARSA,Accuracy - QLearning,Nb episodes - QLearning
+Fixed $\epsilon$ : $\epsilon$ = 0.1,0.6832,3498.8,0.6793999999999999,2546.8
+Fixed $\epsilon$ : $\epsilon$ = 0.3,0.6762,3657.4,0.5652,2743.6
+Fixed $\epsilon$ : $\epsilon$ = 0.5,0.6936,13474.6,0.5972,3168.4
+Fixed $\epsilon$ : $\epsilon$ = 0.7,0.6826000000000001,3617.4,0.5883999999999999,3028.2
+Fixed $\epsilon$ : $\epsilon$ = 0.9,0.6728000000000001,2742.6,0.4782,3316.8
+Decaying-$\epsilon$ : decaying rate = 0.9,0.7140000000000001,2300.6,0.5314,3528.4
+Decaying-$\epsilon$ : decaying rate = 0.99,0.6848,2728.6,0.6394,2989.4
+Decaying-$\epsilon$ : decaying rate = 0.999,0.6552,12316.6,0.6636000000000001,3766.0
+Softmax : $	au$ = 1,0.0712,2000.0,0.4486,2000.0
+Softmax : $	au$ = 0.1,0.20400000000000001,2000.0,0.465,2000.0
+Softmax : $	au$ = 0.01,0.7124,1315.0,0.5614,1844.8
+Softmax : $	au$ = 0.001,0.5803999999999999,1704.4,0.5016,1963.2
