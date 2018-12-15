@@ -3,7 +3,6 @@ import pandas as pd
 from tqdm import tqdm
 import gym
 
-
 def chooseAction(env, q_table, state, epsilon=0, softmax=True, tau=0.01):
     """Choose an action.
 
