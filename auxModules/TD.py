@@ -78,8 +78,7 @@ def routine(env, algo, nEpisode=2000, gamma=0.99, alpha=0.4, epsilon0=0.9, epsil
         accuracy += (success - result[episode]) / window
         result[episode] = success
         episode = (episode + 1) % window
-        if episode == 0 or episode == window // 2:  # accuracy ratio is stored once in @window/2 episodes
-            histAcc.append(accuracy)
+        histAcc.append(accuracy)
 
     return q_table, histAcc
 
@@ -125,7 +124,7 @@ def routineTh(env, algo, threshold=0.8, nEpisodeMax=30000, gamma=0.99, alpha=0.4
     return q_table, histAcc, episode
 
 
-def SARSA(env, nEpisode=2000, gamma=0.999, alpha=0.4, epsilon0=0.9, epsilonMin=0.05, decreaseRate=False, softmax=True,
+def SARSA(env, nEpisode=2000, gamma=0.999, alpha=0.4, epsilon0=0.9, epsilonMin=0.05, decreaseRate=1, softmax=True,
           tau=0.01, window=100):
     return routine(env, "SARSA", nEpisode, gamma, alpha, epsilon0, epsilonMin, decreaseRate, softmax, tau, window)
 
@@ -234,3 +233,4 @@ def compareMethods(envName, nEpisodeAccuracy=100, threshold=0.8, nEpisodeMax=200
 
     # Save recap
     recap.to_csv("output/" + envName + ".csv")
+
