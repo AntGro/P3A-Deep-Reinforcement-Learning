@@ -8,6 +8,7 @@ import collections
 import cv2
 from tensorboardX import SummaryWriter
 import copy
+import time
 
 from multiprocessing import Process, Queue
 
@@ -160,21 +161,15 @@ class DQN(nn.Module):
 
 def train(Q, QHat, device, rank):
     frame_id = 0
-    nEpisode = 25
     GAMMA = 0.99
     EPSILON_0 = 1
     EPSILON_FINAL = 0.02
     DECAYING_RATE = 10 ** (-5)
     storeQ = 1000
     MAX_ITER = 200000
-    BATCH_SIZE = 32
-    REPLAY_SIZE = 10000
-    REPLAY_START_SIZE = 10000
     LEARNING_RATE = 1e-4
-    gpu = False
-    nEpisode = 100
+    nEpisode = 1600
     epsilon = EPSILON_0
-    buffer = collections.deque(maxlen=1)
     loss_fn = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(Q.parameters(), lr=LEARNING_RATE)
     total_rewards = []
@@ -252,13 +247,16 @@ def train(Q, QHat, device, rank):
 
 
 if __name__ == "__main__":
+    start = time.time()
     mp.set_start_method('forkserver')
-    num_processes = 4
+    num_processes = 8
+    print("Using "+str(num_processes)+" processors\n")
     device = torch.device("cpu")
     Q = DQN(env.observation_space.shape, env.action_space.n).to(device)
     QHat = DQN(env.observation_space.shape, env.action_space.n).to(device)
     Q.share_memory()
     QHat.share_memory()
+    #frame_id = mp.Value('i', 0)
     processes = []
     for rank in range(num_processes):
         p = mp.Process(target=train, args=(Q, QHat, device, rank))
@@ -266,3 +264,5 @@ if __name__ == "__main__":
         processes.append(p)
     for p in processes:
         p.join()
+    end = time.time()
+    print(end-start)
