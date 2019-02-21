@@ -238,9 +238,9 @@ def train(Q, QHat, device, rank, num_processes):
         if total_reward is not None:
             total_rewards.append(total_reward)
             mean_reward = np.mean(total_rewards[-100:])
-            writer.add_scalar("epsilon", epsilon, frame_id)
-            writer.add_scalar("reward_100", mean_reward, frame_id)
-            writer.add_scalar("reward", total_reward, frame_id)
+            writer.add_scalar("epsilon", epsilon, frame_id * num_processes + rank)
+            writer.add_scalar("reward_100", mean_reward, frame_id * num_processes + rank)
+            writer.add_scalar("reward", total_reward, frame_id * num_processes + rank)
 
         # save model and update best_mean_reward
         if best_mean_reward is None or best_mean_reward < mean_reward:
@@ -251,7 +251,7 @@ def train(Q, QHat, device, rank, num_processes):
                 'loss': loss
             }, "DQN_saved_models\\Pong_best.tar")
             best_mean_reward = mean_reward
-        print(step, mean_reward, frame_id)
+        print(step, mean_reward, frame_id * num_processes + rank)
 
 
 if __name__ == "__main__":
