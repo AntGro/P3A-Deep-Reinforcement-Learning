@@ -8,9 +8,9 @@ import collections
 import cv2
 from tensorboardX import SummaryWriter
 import copy
+import time
 
 from multiprocessing import Process, Queue
-
 
 class FireResetEnv(gym.Wrapper):
     def __init__(self, env=None):
@@ -158,26 +158,24 @@ class DQN(nn.Module):
         return self.fc(conv_out)
 
 
-def train(Q, QHat, device, rank):
+def train(Q, QHat, device, rank, num_processes):
     frame_id = 0
-    nEpisode = 25
     GAMMA = 0.99
     EPSILON_0 = 1
     EPSILON_FINAL = 0.02
-    DECAYING_RATE = 10 ** (-5)
-    storeQ = 1000
+    DECAYING_RATE = 2 * 10 ** (-5)
+    UPDATE_Q_TARGET = 1000
     MAX_ITER = 200000
-    BATCH_SIZE = 32
-    REPLAY_SIZE = 10000
-    REPLAY_START_SIZE = 10000
     LEARNING_RATE = 1e-4
-    gpu = False
-    nEpisode = 100
+    nEpisode = 1600
+    UPDATE_Q = 5
     epsilon = EPSILON_0
-    buffer = collections.deque(maxlen=1)
     loss_fn = torch.nn.MSELoss()
     optimizer = torch.optim.Adam(Q.parameters(), lr=LEARNING_RATE)
     total_rewards = []
+
+    # store (s, a, r, d, s) before updating Q (not a replay buffer)
+    buffer = collections.deque(maxlen=UPDATE_Q)
 
     # visualize with tensorboardX
     writer = SummaryWriter(comment="-" + "Pong")
@@ -192,7 +190,7 @@ def train(Q, QHat, device, rank):
         total_reward = 0
         for _ in range(MAX_ITER):
             frame_id += 1
-            epsilon = max(EPSILON_FINAL, (1 - DECAYING_RATE) * epsilon)
+            epsilon = max(EPSILON_FINAL, EPSILON_0 - frame_id * DECAYING_RATE)
             if np.random.random() < epsilon:
                 action = np.random.randint(env.action_space.n)
             else:
@@ -203,30 +201,35 @@ def train(Q, QHat, device, rank):
                 action = int(actionV.item())
             obsNext, reward, done, _ = env.step(action)
             total_reward += reward
-
-            observations, actions, rewards, dones, observationsNext = [obs, action, reward, done, obsNext]
+            buffer.append(collections.deque([obs, action, reward, done, obsNext]))
             obs = obsNext
 
-            observations, actions, rewards, dones, observationsNext = np.array([observations]), np.array(
-                [actions]), np.array([rewards], dtype=np.float32), np.array([dones], dtype=np.uint8), np.array(
-                [observationsNext])
-            observationsV = torch.FloatTensor(observations).to(device)
-            observationsNextV = torch.FloatTensor(observationsNext).to(device)
-            actionsV = torch.tensor(actions).to(device)
-            rewardsV = torch.tensor(rewards).to(device)
-            doneMask = torch.ByteTensor(dones).to(device)
-            stateActionValues = Q(observationsV).gather(1, actionsV.unsqueeze(-1)).squeeze(-1)
-            nextStateValues = QHat(observationsNextV).max(1)[0]
-            nextStateValues[doneMask] = 0.0
-            nextStateValues = nextStateValues.detach()
+            if len(buffer) == UPDATE_Q or done:
+                observations, actions, rewards, dones, observationsNext = zip(*buffer)
 
-            expectedStateActionValues = nextStateValues * GAMMA + rewardsV
-            optimizer.zero_grad()
-            loss = loss_fn(stateActionValues, expectedStateActionValues)
-            loss.backward()
-            optimizer.step()
+                observations, actions, rewards, dones, observationsNext = np.array(observations), np.array(
+                    actions), np.array(rewards, dtype=np.float32), np.array(dones, dtype=np.uint8), np.array(
+                    observationsNext)
+                observationsV = torch.FloatTensor(observations).to(device)
+                observationsNextV = torch.FloatTensor(observationsNext).to(device)
+                actionsV = torch.tensor(actions).to(device)
+                rewardsV = torch.tensor(rewards).to(device)
+                doneMask = torch.ByteTensor(dones).to(device)
 
-            if frame_id % storeQ == 0:
+                stateActionValues = Q(observationsV).gather(1, actionsV.unsqueeze(-1)).squeeze(-1)
+                nextStateValues = QHat(observationsNextV).max(1)[0]
+                nextStateValues[doneMask] = 0.0
+                nextStateValues = nextStateValues.detach()
+
+                expectedStateActionValues = nextStateValues * GAMMA + rewardsV
+                optimizer.zero_grad()
+                loss = loss_fn(stateActionValues, expectedStateActionValues)
+                loss.backward()
+                optimizer.step()
+
+                buffer.clear()
+
+            if frame_id % UPDATE_Q_TARGET == 0:
                 QHat = copy.deepcopy(Q)
 
             if done:
@@ -252,17 +255,22 @@ def train(Q, QHat, device, rank):
 
 
 if __name__ == "__main__":
+    start = time.time()
     mp.set_start_method('forkserver')
-    num_processes = 4
+    num_processes = 8
+    print("Using "+str(num_processes)+" processors\n")
     device = torch.device("cpu")
     Q = DQN(env.observation_space.shape, env.action_space.n).to(device)
     QHat = DQN(env.observation_space.shape, env.action_space.n).to(device)
     Q.share_memory()
     QHat.share_memory()
+    #frame_id = mp.Value('i', 0)
     processes = []
     for rank in range(num_processes):
-        p = mp.Process(target=train, args=(Q, QHat, device, rank))
+        p = mp.Process(target=train, args=(Q, QHat, device, rank, num_processes))
         p.start()
         processes.append(p)
     for p in processes:
         p.join()
+    end = time.time()
+    print(end-start)
