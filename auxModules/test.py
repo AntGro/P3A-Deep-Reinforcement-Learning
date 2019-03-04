@@ -7,7 +7,7 @@ def test1(x, val):
 
 if __name__ == "__main__":
     mp.set_start_method('forkserver')
-    num_processes = 4
+    num_processes = 16
     val = mp.Value('i', 0)
     x = 0
     processes = []

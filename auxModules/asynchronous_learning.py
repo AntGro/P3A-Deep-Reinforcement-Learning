@@ -158,16 +158,16 @@ class DQN(nn.Module):
         return self.fc(conv_out)
 
 
-def train(Q, QHat, device, rank, num_processes):
-    frame_id = 0
+def train(Q, QHat, device, rank, num_processes, frame_id):
+    #frame_id = 0
     GAMMA = 0.99
     EPSILON_0 = 1
     EPSILON_FINAL = 0.02
     DECAYING_RATE = 2 * 10 ** (-5)
-    UPDATE_Q_TARGET = 1000
+    UPDATE_Q_TARGET = 40000
     MAX_ITER = 200000
     LEARNING_RATE = 1e-4
-    nEpisode = 1600
+    nEpisode = 1000
     UPDATE_Q = 5
     epsilon = EPSILON_0
     loss_fn = torch.nn.MSELoss()
@@ -189,8 +189,9 @@ def train(Q, QHat, device, rank, num_processes):
         obs = env.reset()
         total_reward = 0
         for _ in range(MAX_ITER):
-            frame_id += 1
-            epsilon = max(EPSILON_FINAL, EPSILON_0 - frame_id * DECAYING_RATE)
+            frame_id.value += 1
+            local_frame_id = frame_id.value
+            epsilon = max(EPSILON_FINAL, EPSILON_0 - local_frame_id * DECAYING_RATE)
             if np.random.random() < epsilon:
                 action = np.random.randint(env.action_space.n)
             else:
@@ -229,8 +230,10 @@ def train(Q, QHat, device, rank, num_processes):
 
                 buffer.clear()
 
-            if frame_id % UPDATE_Q_TARGET == 0:
+            if local_frame_id % UPDATE_Q_TARGET == 0:
                 QHat = copy.deepcopy(Q)
+                #if rank==0:
+                    #print(list(QHat.parameters())[1])
 
             if done:
                 break
@@ -238,9 +241,9 @@ def train(Q, QHat, device, rank, num_processes):
         if total_reward is not None:
             total_rewards.append(total_reward)
             mean_reward = np.mean(total_rewards[-100:])
-            writer.add_scalar("epsilon", epsilon, frame_id * num_processes + rank)
-            writer.add_scalar("reward_100", mean_reward, frame_id * num_processes + rank)
-            writer.add_scalar("reward", total_reward, frame_id * num_processes + rank)
+            writer.add_scalar("epsilon", epsilon, local_frame_id * num_processes + rank)
+            writer.add_scalar("reward_100", mean_reward, local_frame_id * num_processes + rank)
+            writer.add_scalar("reward", total_reward, local_frame_id * num_processes + rank)
 
         # save model and update best_mean_reward
         if best_mean_reward is None or best_mean_reward < mean_reward:
@@ -251,23 +254,23 @@ def train(Q, QHat, device, rank, num_processes):
                 'loss': loss
             }, "DQN_saved_models\\Pong_best.tar")
             best_mean_reward = mean_reward
-        print(step, mean_reward, frame_id * num_processes + rank)
+        print(step, mean_reward, local_frame_id * num_processes + rank)
 
 
 if __name__ == "__main__":
     start = time.time()
     mp.set_start_method('forkserver')
-    num_processes = 8
+    num_processes = 4
     print("Using "+str(num_processes)+" processors\n")
     device = torch.device("cpu")
     Q = DQN(env.observation_space.shape, env.action_space.n).to(device)
     QHat = DQN(env.observation_space.shape, env.action_space.n).to(device)
     Q.share_memory()
     QHat.share_memory()
-    #frame_id = mp.Value('i', 0)
+    frame_id = mp.Value('i', 0)
     processes = []
     for rank in range(num_processes):
-        p = mp.Process(target=train, args=(Q, QHat, device, rank, num_processes))
+        p = mp.Process(target=train, args=(Q, QHat, device, rank, num_processes, frame_id))
         p.start()
         processes.append(p)
     for p in processes:
