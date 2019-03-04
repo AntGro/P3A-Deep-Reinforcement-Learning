@@ -126,8 +126,6 @@ def make_env(env_name):
     return ScaledFloatFrame(env)
 
 
-env = make_env('PongNoFrameskip-v4')
-
 
 class DQN(nn.Module):
     def __init__(self, input_shape, n_actions):
@@ -159,6 +157,7 @@ class DQN(nn.Module):
 
 
 def train(Q, QHat, device, rank, num_processes, frame_id):
+    env = make_env('PongNoFrameskip-v4')
     #frame_id = 0
     GAMMA = 0.99
     EPSILON_0 = 1
@@ -241,9 +240,9 @@ def train(Q, QHat, device, rank, num_processes, frame_id):
         if total_reward is not None:
             total_rewards.append(total_reward)
             mean_reward = np.mean(total_rewards[-100:])
-            writer.add_scalar("epsilon", epsilon, local_frame_id * num_processes + rank)
-            writer.add_scalar("reward_100", mean_reward, local_frame_id * num_processes + rank)
-            writer.add_scalar("reward", total_reward, local_frame_id * num_processes + rank)
+            writer.add_scalar("epsilon", epsilon, local_frame_id )
+            writer.add_scalar("reward_100", mean_reward, local_frame_id )
+            writer.add_scalar("reward", total_reward, local_frame_id )
 
         # save model and update best_mean_reward
         if best_mean_reward is None or best_mean_reward < mean_reward:
@@ -254,10 +253,11 @@ def train(Q, QHat, device, rank, num_processes, frame_id):
                 'loss': loss
             }, "DQN_saved_models\\Pong_best.tar")
             best_mean_reward = mean_reward
-        print(step, mean_reward, local_frame_id * num_processes + rank)
+        print(step, mean_reward, local_frame_id)
 
 
 if __name__ == "__main__":
+    env = make_env('PongNoFrameskip-v4')
     start = time.time()
     mp.set_start_method('forkserver')
     num_processes = 4
