@@ -157,6 +157,7 @@ class DQN(nn.Module):
 
 
 def train(Q, QHat, device, rank, num_processes, frame_id):
+    env = make_env('PongNoFrameskip-v4')
     nEpisode = 500
     GAMMA = 0.99
     EPSILON_0 = 1
@@ -184,6 +185,7 @@ def train(Q, QHat, device, rank, num_processes, frame_id):
 
     # main loop
     for step in range(nEpisode):
+        print("process " + str(rank) + " is at episode " + str(step) + " out of " + str(nEpisode))
         obs = env.reset()
         total_reward = 0
         for _ in range(MAX_ITER):
@@ -205,7 +207,6 @@ def train(Q, QHat, device, rank, num_processes, frame_id):
 
             if len(buffer) >= REPLAY_START_SIZE:
                 indices = np.random.choice(len(buffer), BATCH_SIZE, replace=False)
-                print(indices)
                 observations, actions, rewards, dones, observationsNext = zip(*[buffer[idx] for idx in indices])
 
                 observations, actions, rewards, dones, observationsNext = np.array(observations), np.array(
