@@ -191,7 +191,7 @@ def train(Q, QHat, device, rank, num_processes, frame_id):
         for _ in range(MAX_ITER):
             frame_id.value += 1
             local_frame_id = frame_id.value
-            epsilon = max(EPSILON_FINAL, EPSILON_0 - frame_id * DECAYING_RATE)
+            epsilon = max(EPSILON_FINAL, EPSILON_0 - local_frame_id * DECAYING_RATE)
             if np.random.random() < epsilon:
                 action = np.random.randint(env.action_space.n)
             else:
