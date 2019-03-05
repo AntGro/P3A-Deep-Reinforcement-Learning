@@ -259,7 +259,7 @@ def train(Q, QHat, device, rank, num_processes, frame_id):
 if __name__ == "__main__":
     env_init = make_env('PongNoFrameskip-v4')
     start = time.time()
-    mp.set_start_method('forkserver')
+    mp.set_start_method('spawn')
     num_processes = 4
     print("Using "+str(num_processes)+" processors\n")
     device = torch.device("cpu")
