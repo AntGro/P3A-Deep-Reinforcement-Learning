@@ -259,9 +259,9 @@ if __name__ == "__main__":
     env_init = make_env('PongNoFrameskip-v4')
     start = time.time()
     mp.set_start_method('spawn')
-    num_processes = 4
+    num_processes = 6
     print("Using "+str(num_processes)+" processors\n")
-    device = torch.device("cpu")
+    device = torch.device("cuda")
     Q = DQN (env_init.observation_space.shape, env_init.action_space.n).to(device)
     QHat = DQN(env_init.observation_space.shape, env_init.action_space.n).to(device)
     Q.share_memory()
