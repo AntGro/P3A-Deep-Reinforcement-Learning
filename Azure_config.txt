@@ -20,3 +20,10 @@ ssh -L 9999:localhost:9999 grosnit-hamaoui-2@13.74.20.104
 HX2LLGx2016P3A
 
 jupyter lab --no-browser --port 9999
+
+
+%========
+Using tensorboardX with pytorch
+%========
+
+tensorboard --logdir=/runs
