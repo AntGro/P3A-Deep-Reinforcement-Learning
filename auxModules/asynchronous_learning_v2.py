@@ -12,6 +12,7 @@ import time
 
 from multiprocessing import Process, Queue
 
+
 class FireResetEnv(gym.Wrapper):
     def __init__(self, env=None):
         super(FireResetEnv, self).__init__(env)
@@ -126,7 +127,6 @@ def make_env(env_name):
     return ScaledFloatFrame(env)
 
 
-
 class DQN(nn.Module):
     def __init__(self, input_shape, n_actions):
         super(DQN, self).__init__()
@@ -156,20 +156,21 @@ class DQN(nn.Module):
         return self.fc(conv_out)
 
 
-def train(Q, QHat, device, rank, num_processes, frame_id):
+def train(Q, QHat, device, rank, num_processes, frame_id, double): #double is a boolen defining whether we want to use doudle-DQN or not
     env = make_env('PongNoFrameskip-v4')
+
+    # Hyperparameters (mainly taken from Ch.6 of DRL Hands-on)
     nEpisode = 500
     GAMMA = 0.99
     EPSILON_0 = 1
     EPSILON_FINAL = 0.02
     DECAYING_RATE = 10 ** (-5)
-    storeQ = 1000
+    STORE_Q = 1000
     MAX_ITER = 200000
     BATCH_SIZE = 32
     REPLAY_SIZE = 10000
-    REPLAY_START_SIZE = 100
+    REPLAY_START_SIZE = 10000
     LEARNING_RATE = 1e-4
-    #gpu = False
 
     epsilon = EPSILON_0
     buffer = collections.deque(maxlen=REPLAY_SIZE)
@@ -220,7 +221,11 @@ def train(Q, QHat, device, rank, num_processes, frame_id):
                 # print(actionsV.shape)
 
                 stateActionValues = Q(observationsV).gather(1, actionsV.unsqueeze(-1)).squeeze(-1)
-                nextStateValues = QHat(observationsNextV).max(1)[0]
+                if double:
+                    nextStateActions = Q(observationsNextV).max(1)[1]
+                    nextStateValues = QHat(observationsNextV).gather(1, nextStateActions.unsqueeze(-1)).squeeze(-1)
+                else:
+                    nextStateValues = QHat(observationsNextV).max(1)[0]
                 nextStateValues[doneMask] = 0.0
                 nextStateValues = nextStateValues.detach()
 
@@ -230,7 +235,7 @@ def train(Q, QHat, device, rank, num_processes, frame_id):
                 loss.backward()
                 optimizer.step()
 
-            if local_frame_id % storeQ == 0:
+            if local_frame_id % STORE_Q == 0:
                 QHat = copy.deepcopy(Q)
 
             if done:
@@ -255,24 +260,26 @@ def train(Q, QHat, device, rank, num_processes, frame_id):
             best_mean_reward = mean_reward
         print(step, mean_reward, local_frame_id)
 
+
 if __name__ == "__main__":
     env_init = make_env('PongNoFrameskip-v4')
     start = time.time()
     mp.set_start_method('spawn')
     num_processes = 6
-    print("Using "+str(num_processes)+" processors\n")
+    double = True
+    print("Using " + str(num_processes) + " processors\n")
     device = torch.device("cuda")
-    Q = DQN (env_init.observation_space.shape, env_init.action_space.n).to(device)
+    Q = DQN(env_init.observation_space.shape, env_init.action_space.n).to(device)
     QHat = DQN(env_init.observation_space.shape, env_init.action_space.n).to(device)
     Q.share_memory()
     QHat.share_memory()
     frame_id = mp.Value('i', 0)
     processes = []
     for rank in range(num_processes):
-        p = mp.Process(target=train, args=(Q, QHat, device, rank, num_processes, frame_id))
+        p = mp.Process(target=train, args=(Q, QHat, device, rank, num_processes, frame_id, double))
         p.start()
         processes.append(p)
     for p in processes:
         p.join()
     end = time.time()
-    print(end-start)
+    print(end - start)
