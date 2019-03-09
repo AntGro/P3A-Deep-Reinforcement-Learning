@@ -250,7 +250,7 @@ def train(Q, QHat, device, rank, num_processes, frame_id, double): #double is a 
             writer.add_scalar("reward", total_reward, local_frame_id)
 
         # save model and update best_mean_reward
-        if best_mean_reward is None or best_mean_reward < mean_reward:
+        if best_mean_reward is None or best_mean_reward < mean_reward and len(buffer) >= REPLAY_START_SIZE:
             torch.save({
                 'game': step,
                 'model_state_dict': Q.state_dict(),
