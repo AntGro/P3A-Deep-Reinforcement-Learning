@@ -160,7 +160,7 @@ def train(Q, QHat, device, rank, num_processes, frame_id, double): #double is a 
     env = make_env('PongNoFrameskip-v4')
 
     # Hyperparameters (mainly taken from Ch.6 of DRL Hands-on)
-    nEpisode = 500
+    nEpisode = 1000
     GAMMA = 0.99
     EPSILON_0 = 1
     EPSILON_FINAL = 0.02
@@ -250,7 +250,7 @@ def train(Q, QHat, device, rank, num_processes, frame_id, double): #double is a 
             writer.add_scalar("reward", total_reward, local_frame_id)
 
         # save model and update best_mean_reward
-        if best_mean_reward is None or best_mean_reward < mean_reward and len(buffer) >= REPLAY_START_SIZE:
+        if (best_mean_reward is None or best_mean_reward < mean_reward) and len(buffer) >= REPLAY_START_SIZE:
             torch.save({
                 'game': step,
                 'model_state_dict': Q.state_dict(),
@@ -265,7 +265,7 @@ if __name__ == "__main__":
     env_init = make_env('PongNoFrameskip-v4')
     start = time.time()
     mp.set_start_method('spawn')
-    num_processes = 6
+    num_processes = 1
     double = True
     print("Using " + str(num_processes) + " processors\n")
     device = torch.device("cuda")
