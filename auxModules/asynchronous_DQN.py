@@ -156,11 +156,11 @@ class DQN(nn.Module):
         return self.fc(conv_out)
 
 
-def train(Q, QHat, device, rank, num_processes, frame_id, double): #double is a boolen defining whether we want to use doudle-DQN or not
+def train(Q, QHat, device, rank, num_processes, frame_id, double, optimizer): #double is a boolen defining whether we want to use doudle-DQN or not
     env = make_env('PongNoFrameskip-v4')
 
     # Hyperparameters (mainly taken from Ch.6 of DRL Hands-on)
-    nEpisode = 1000
+    nEpisode = 225
     GAMMA = 0.99
     EPSILON_0 = 1
     EPSILON_FINAL = 0.02
@@ -170,16 +170,14 @@ def train(Q, QHat, device, rank, num_processes, frame_id, double): #double is a 
     BATCH_SIZE = 32
     REPLAY_SIZE = 10000
     REPLAY_START_SIZE = 10000
-    LEARNING_RATE = 1e-4
 
     epsilon = EPSILON_0
     buffer = collections.deque(maxlen=REPLAY_SIZE)
     loss_fn = torch.nn.MSELoss()
-    optimizer = torch.optim.Adam(Q.parameters(), lr=LEARNING_RATE)
     total_rewards = []
 
     # visualize with tensorboardX
-    writer = SummaryWriter(comment="-" + "Pong")
+    writer = SummaryWriter(comment="-" + str(rank) + "-Pong")
 
     # best mean reward for the last 100 episodes
     best_mean_reward = None
@@ -258,25 +256,27 @@ def train(Q, QHat, device, rank, num_processes, frame_id, double): #double is a 
                 'loss': loss
             }, "DQN_saved_models\\Pong_best.tar")
             best_mean_reward = mean_reward
-        print(step, mean_reward, local_frame_id)
+        print(step, mean_reward, total_reward, local_frame_id)
 
 
 if __name__ == "__main__":
     env_init = make_env('PongNoFrameskip-v4')
     start = time.time()
     mp.set_start_method('spawn')
-    num_processes = 1
+    num_processes = 6
     double = True
     print("Using " + str(num_processes) + " processors\n")
-    device = torch.device("cuda")
+    device = torch.device("cpu")
     Q = DQN(env_init.observation_space.shape, env_init.action_space.n).to(device)
     QHat = DQN(env_init.observation_space.shape, env_init.action_space.n).to(device)
     Q.share_memory()
     QHat.share_memory()
+    LEARNING_RATE = 1e-4
+    optimizer = torch.optim.Adam(Q.parameters(), lr=LEARNING_RATE)
     frame_id = mp.Value('i', 0)
     processes = []
     for rank in range(num_processes):
-        p = mp.Process(target=train, args=(Q, QHat, device, rank, num_processes, frame_id, double))
+        p = mp.Process(target=train, args=(Q, QHat, device, rank, num_processes, frame_id, double, optimizer))
         p.start()
         processes.append(p)
     for p in processes:
