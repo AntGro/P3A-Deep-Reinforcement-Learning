@@ -204,8 +204,7 @@ def train(Q, QHat, device, rank, num_processes, frame_id, exploration, double, o
             elif exploration[0] == "softmax":
                 obs1 = np.array([obs], copy=False)
                 obs1 = torch.tensor(obs1).to(device)
-                print(Q(obs1))
-                qVals = Q(obs1).cpu().detach().numpy()
+                qVals = Q(obs1).cpu().detach().numpy()[0]
                 print(qVals)
                 mV = np.max(qVals)
                 aux = np.exp((qVals - mV) / exploration[1])
