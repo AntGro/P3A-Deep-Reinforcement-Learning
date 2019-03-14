@@ -25,5 +25,6 @@ jupyter lab --no-browser --port 9999
 %========
 Using tensorboardX with pytorch
 %========
-
+ssh -L 16006:127.0.0.1:6006 grosnit-hamaoui-2@13.69.131.171
 tensorboard --logdir=/runs
+http://127.0.0.1:16006/

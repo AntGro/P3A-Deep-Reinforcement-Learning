@@ -1,16 +1,16 @@
-import torch
-import torch.nn as nn
+import collections
+import copy
+import os
+import time
+
+import cv2
 import gym
 import gym.spaces
 import numpy as np
+import torch
 import torch.multiprocessing as mp
-import collections
-import cv2
+import torch.nn as nn
 from tensorboardX import SummaryWriter
-import copy
-import time
-
-from multiprocessing import Process, Queue
 
 
 class FireResetEnv(gym.Wrapper):
@@ -118,6 +118,7 @@ class ScaledFloatFrame(gym.ObservationWrapper):
 
 
 def make_env(env_name):
+    os.environ["MKL_NUM_THREADS"] = "1"
     env = gym.make(env_name)
     env = MaxAndSkipEnv(env)
     env = FireResetEnv(env)
@@ -156,11 +157,12 @@ class DQN(nn.Module):
         return self.fc(conv_out)
 
 
-def train(Q, QHat, device, rank, num_processes, frame_id, double, optimizer): #double is a boolen defining whether we want to use doudle-DQN or not
+def train(Q, QHat, device, rank, num_processes, frame_id, double, optimizer,
+          n_step):  # double is a boolen defining whether we want to use doudle-DQN or not
     env = make_env('PongNoFrameskip-v4')
 
     # Hyperparameters (mainly taken from Ch.6 of DRL Hands-on)
-    nEpisode = 750
+    nEpisode = 100
     GAMMA = 0.99
     EPSILON_0 = 1
     EPSILON_FINAL = 0.02
@@ -227,7 +229,7 @@ def train(Q, QHat, device, rank, num_processes, frame_id, double, optimizer): #d
                 nextStateValues[doneMask] = 0.0
                 nextStateValues = nextStateValues.detach()
 
-                expectedStateActionValues = nextStateValues * GAMMA + rewardsV
+                expectedStateActionValues = nextStateValues * GAMMA ** n_step + rewardsV
                 optimizer.zero_grad()
                 loss = loss_fn(stateActionValues, expectedStateActionValues)
                 loss.backward()
@@ -263,8 +265,9 @@ if __name__ == "__main__":
     env_init = make_env('PongNoFrameskip-v4')
     start = time.time()
     mp.set_start_method('spawn')
-    num_processes = 1
-    double = False
+    num_processes = 6
+    double = True
+    n_step = 1
     print("Using " + str(num_processes) + " processors\n")
     device = torch.device("cuda")
     Q = DQN(env_init.observation_space.shape, env_init.action_space.n).to(device)
@@ -276,7 +279,7 @@ if __name__ == "__main__":
     frame_id = mp.Value('i', 0)
     processes = []
     for rank in range(num_processes):
-        p = mp.Process(target=train, args=(Q, QHat, device, rank, num_processes, frame_id, double, optimizer))
+        p = mp.Process(target=train, args=(Q, QHat, device, rank, num_processes, frame_id, double, optimizer, n_step))
         p.start()
         processes.append(p)
     for p in processes:
