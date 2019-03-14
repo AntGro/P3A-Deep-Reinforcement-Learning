@@ -161,7 +161,7 @@ def train(Q, QHat, device, rank, num_processes, frame_id, exploration, double, o
     env = make_env('PongNoFrameskip-v4')
 
     # Hyperparameters (mainly taken from Ch.6 of DRL Hands-on)
-    nEpisode = 100
+    nEpisode = 750
     GAMMA = 0.99
     EPSILON_0 = 1
     EPSILON_FINAL = 0.02
@@ -170,7 +170,7 @@ def train(Q, QHat, device, rank, num_processes, frame_id, exploration, double, o
     MAX_ITER = 200000
     BATCH_SIZE = 32
     REPLAY_SIZE = 10000
-    REPLAY_START_SIZE = 10000
+    REPLAY_START_SIZE = 10000 / num_processes
 
     epsilon = EPSILON_0
     buffer = collections.deque(maxlen=REPLAY_SIZE)
@@ -273,8 +273,8 @@ if __name__ == "__main__":
     env_init = make_env('PongNoFrameskip-v4')
     start = time.time()
     mp.set_start_method('spawn')
-    num_processes = 1
-    exploration = ["softmax", 0.01] #exploration belongs to {["e-greedy"], ["softmax", tau]}
+    num_processes = 6
+    exploration = ["softmax", 0.01]  # exploration belongs to {["e-greedy"], ["softmax", tau]}
     double = True
     n_step = 1
     print("Using " + str(num_processes) + " processors\n")
@@ -288,7 +288,8 @@ if __name__ == "__main__":
     frame_id = mp.Value('i', 0)
     processes = []
     for rank in range(num_processes):
-        p = mp.Process(target=train, args=(Q, QHat, device, rank, num_processes, frame_id, exploration, double, optimizer, n_step))
+        p = mp.Process(target=train,
+                       args=(Q, QHat, device, rank, num_processes, frame_id, exploration, double, optimizer, n_step))
         p.start()
         processes.append(p)
     for p in processes:
