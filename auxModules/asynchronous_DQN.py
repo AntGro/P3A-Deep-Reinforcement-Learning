@@ -118,7 +118,6 @@ class ScaledFloatFrame(gym.ObservationWrapper):
 
 
 def make_env(env_name):
-    os.environ["MKL_NUM_THREADS"] = "1"
     env = gym.make(env_name)
     env = MaxAndSkipEnv(env)
     env = FireResetEnv(env)
@@ -157,7 +156,7 @@ class DQN(nn.Module):
         return self.fc(conv_out)
 
 
-def train(Q, QHat, device, rank, num_processes, frame_id, double, optimizer,
+def train(Q, QHat, device, rank, num_processes, frame_id, exploration, double, optimizer,
           n_step):  # double is a boolen defining whether we want to use doudle-DQN or not
     env = make_env('PongNoFrameskip-v4')
 
@@ -179,7 +178,7 @@ def train(Q, QHat, device, rank, num_processes, frame_id, double, optimizer,
     total_rewards = []
 
     # visualize with tensorboardX
-    writer = SummaryWriter(comment="-" + str(rank) + "-Pong")
+    writer = SummaryWriter(comment="-" + str(rank) + "-" + exploration[0] + "-Pong")
 
     # best mean reward for the last 100 episodes
     best_mean_reward = None
@@ -193,14 +192,23 @@ def train(Q, QHat, device, rank, num_processes, frame_id, double, optimizer,
             frame_id.value += 1
             local_frame_id = frame_id.value
             epsilon = max(EPSILON_FINAL, EPSILON_0 - local_frame_id * DECAYING_RATE)
-            if np.random.random() < epsilon:
-                action = np.random.randint(env.action_space.n)
-            else:
+            if exploration[0] == "e-greedy":
+                if np.random.random() < epsilon:
+                    action = np.random.randint(env.action_space.n)
+                else:
+                    obs1 = np.array([obs], copy=False)
+                    obs1 = torch.tensor(obs1).to(device)
+                    qVals = Q(obs1)
+                    _, actionV = torch.max(qVals, dim=1)
+                    action = int(actionV.item())
+            elif exploration[0] == "softmax":
                 obs1 = np.array([obs], copy=False)
                 obs1 = torch.tensor(obs1).to(device)
                 qVals = Q(obs1)
-                _, actionV = torch.max(qVals, dim=1)
-                action = int(actionV.item())
+                mV = int(torch.max(qVals, dim=1).item())
+                aux = np.exp((qVals.numpy() - mV) / exploration[1])
+                d = np.sum(aux)
+                action = np.random.choice(np.arange(env.action_space.n), p=aux / d)
             obsNext, reward, done, _ = env.step(action)
             total_reward += reward
             buffer.append(collections.deque([obs, action, reward, done, obsNext]))
@@ -265,7 +273,8 @@ if __name__ == "__main__":
     env_init = make_env('PongNoFrameskip-v4')
     start = time.time()
     mp.set_start_method('spawn')
-    num_processes = 6
+    num_processes = 1
+    exploration = ["softmax", 0.01] #exploration belongs to {["e-greedy"], ["softmax", tau]}
     double = True
     n_step = 1
     print("Using " + str(num_processes) + " processors\n")
@@ -279,7 +288,7 @@ if __name__ == "__main__":
     frame_id = mp.Value('i', 0)
     processes = []
     for rank in range(num_processes):
-        p = mp.Process(target=train, args=(Q, QHat, device, rank, num_processes, frame_id, double, optimizer, n_step))
+        p = mp.Process(target=train, args=(Q, QHat, device, rank, num_processes, frame_id, exploration, double, optimizer, n_step))
         p.start()
         processes.append(p)
     for p in processes:
