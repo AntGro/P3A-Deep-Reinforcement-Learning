@@ -204,9 +204,9 @@ def train(Q, QHat, device, rank, num_processes, frame_id, exploration, double, o
             elif exploration[0] == "softmax":
                 obs1 = np.array([obs], copy=False)
                 obs1 = torch.tensor(obs1).to(device)
-                qVals = Q(obs1)
-                mV = int(torch.max(qVals, dim=1).item())
-                aux = np.exp((qVals.numpy() - mV) / exploration[1])
+                qVals = Q(obs1).numpy()
+                mV = np.max(qVals)
+                aux = np.exp((qVals - mV) / exploration[1])
                 d = np.sum(aux)
                 action = np.random.choice(np.arange(env.action_space.n), p=aux / d)
             obsNext, reward, done, _ = env.step(action)
