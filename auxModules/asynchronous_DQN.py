@@ -160,7 +160,7 @@ def train(Q, QHat, device, rank, num_processes, frame_id, double, optimizer): #d
     env = make_env('PongNoFrameskip-v4')
 
     # Hyperparameters (mainly taken from Ch.6 of DRL Hands-on)
-    nEpisode = 225
+    nEpisode = 750
     GAMMA = 0.99
     EPSILON_0 = 1
     EPSILON_FINAL = 0.02
@@ -263,10 +263,10 @@ if __name__ == "__main__":
     env_init = make_env('PongNoFrameskip-v4')
     start = time.time()
     mp.set_start_method('spawn')
-    num_processes = 6
-    double = True
+    num_processes = 1
+    double = False
     print("Using " + str(num_processes) + " processors\n")
-    device = torch.device("cpu")
+    device = torch.device("cuda")
     Q = DQN(env_init.observation_space.shape, env_init.action_space.n).to(device)
     QHat = DQN(env_init.observation_space.shape, env_init.action_space.n).to(device)
     Q.share_memory()
