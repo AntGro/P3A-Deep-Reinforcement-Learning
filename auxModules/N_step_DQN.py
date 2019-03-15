@@ -178,7 +178,7 @@ def train(Q, QHat, device, exploration, double, optimizer,
     total_rewards = []
 
     # visualize with tensorboardX
-    writer = SummaryWriter(comment="-" + exploration[0] + "-Pong")
+    writer = SummaryWriter(comment="-" + exploration[0] + "-" + ("double-" if double else "") + str(n_step) + "-Pong")
 
     # best mean reward for the last 100 episodes
     best_mean_reward = None
