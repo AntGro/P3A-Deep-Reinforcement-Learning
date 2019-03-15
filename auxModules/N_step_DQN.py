@@ -1,6 +1,5 @@
 import collections
 import copy
-import os
 import time
 
 import cv2
@@ -8,7 +7,6 @@ import gym
 import gym.spaces
 import numpy as np
 import torch
-import torch.multiprocessing as mp
 import torch.nn as nn
 from tensorboardX import SummaryWriter
 
@@ -156,7 +154,7 @@ class DQN(nn.Module):
         return self.fc(conv_out)
 
 
-def train(Q, QHat, device, rank, num_processes, frame_id, exploration, double, optimizer,
+def train(Q, QHat, exploration, double, optimizer,
           n_step):  # double is a boolen defining whether we want to use doudle-DQN or not
     env = make_env('PongNoFrameskip-v4')
 
@@ -165,32 +163,35 @@ def train(Q, QHat, device, rank, num_processes, frame_id, exploration, double, o
     GAMMA = 0.99
     EPSILON_0 = 1
     EPSILON_FINAL = 0.02
-    DECAYING_RATE = 10 ** (-5) / num_processes
+    DECAYING_RATE = 10 ** (-5)
     STORE_Q = 1000
     MAX_ITER = 200000
     BATCH_SIZE = 32
     REPLAY_SIZE = 10000
-    REPLAY_START_SIZE = 10000 / num_processes
+    REPLAY_START_SIZE = 10000
 
     epsilon = EPSILON_0
     buffer = collections.deque(maxlen=REPLAY_SIZE)
+    wait_buffer = collections.deque(maxlen=n_step)
+    w_buf_len = 0
     loss_fn = torch.nn.MSELoss()
     total_rewards = []
 
     # visualize with tensorboardX
-    writer = SummaryWriter(comment="-" + str(rank) + "-" + exploration[0] + "-Pong")
+    writer = SummaryWriter(comment="-" + exploration[0] + "-Pong")
 
     # best mean reward for the last 100 episodes
     best_mean_reward = None
 
+    local_frame_id = 0
+
     # main loop
     for step in range(nEpisode):
-        print("process " + str(rank) + " is at episode " + str(step) + " out of " + str(nEpisode))
+        print("is at episode " + str(step) + " out of " + str(nEpisode))
         obs = env.reset()
         total_reward = 0
         for _ in range(MAX_ITER):
-            frame_id.value += 1
-            local_frame_id = frame_id.value
+            local_frame_id += 1
             epsilon = max(EPSILON_FINAL, EPSILON_0 - local_frame_id * DECAYING_RATE)
             if exploration[0] == "e-greedy":
                 if np.random.random() < epsilon:
@@ -211,21 +212,36 @@ def train(Q, QHat, device, rank, num_processes, frame_id, exploration, double, o
                 action = np.random.choice(np.arange(env.action_space.n), p=aux / d)
             obsNext, reward, done, _ = env.step(action)
             total_reward += reward
-            buffer.append(collections.deque([obs, action, reward, done, obsNext]))
+            for i in range(w_buf_len):
+                wait_buffer[i][2] += GAMMA ** (wait_buffer[i][-1]) * reward
+                wait_buffer[i][-1] += 1
+                wait_buffer[i][-3] = done
+
+            if w_buf_len == n_step:
+                buffer.append(wait_buffer.popleft())
+                w_buf_len -= 1
+
+            wait_buffer.append([obs, action, reward, done, obsNext, 1])
+            w_buf_len += 1
+
+            if done:
+                buffer.extend(wait_buffer)
+
             obs = obsNext
 
             if len(buffer) >= REPLAY_START_SIZE:
                 indices = np.random.choice(len(buffer), BATCH_SIZE, replace=False)
-                observations, actions, rewards, dones, observationsNext = zip(*[buffer[idx] for idx in indices])
+                observations, actions, rewards, dones, observationsNext, gammaFactor = zip(*[buffer[idx] for idx in indices])
 
-                observations, actions, rewards, dones, observationsNext = np.array(observations), np.array(
+                observations, actions, rewards, dones, observationsNext, gammaFactor = np.array(observations), np.array(
                     actions), np.array(rewards, dtype=np.float32), np.array(dones, dtype=np.uint8), np.array(
-                    observationsNext)
+                    observationsNext), np.array (gammaFactor, dtype=np.uint8)
                 observationsV = torch.FloatTensor(observations).to(device)
                 observationsNextV = torch.FloatTensor(observationsNext).to(device)
                 actionsV = torch.tensor(actions).to(device)
                 rewardsV = torch.tensor(rewards).to(device)
                 doneMask = torch.ByteTensor(dones).to(device)
+                gammaFactorV =  torch.ByteTensor(gammaFactor).to(device)
                 # print(actionsV.shape)
 
                 stateActionValues = Q(observationsV).gather(1, actionsV.unsqueeze(-1)).squeeze(-1)
@@ -237,7 +253,9 @@ def train(Q, QHat, device, rank, num_processes, frame_id, exploration, double, o
                 nextStateValues[doneMask] = 0.0
                 nextStateValues = nextStateValues.detach()
 
-                expectedStateActionValues = nextStateValues * GAMMA ** n_step + rewardsV
+                gammaFactor = gammaFactorV.detach()
+
+                expectedStateActionValues = nextStateValues * GAMMA ** gammaFactor + rewardsV
                 optimizer.zero_grad()
                 loss = loss_fn(stateActionValues, expectedStateActionValues)
                 loss.backward()
@@ -272,27 +290,14 @@ def train(Q, QHat, device, rank, num_processes, frame_id, exploration, double, o
 if __name__ == "__main__":
     env_init = make_env('PongNoFrameskip-v4')
     start = time.time()
-    mp.set_start_method('spawn')
-    num_processes = 6
     exploration = ["softmax", 0.01]  # exploration belongs to {["e-greedy"], ["softmax", tau]}
     double = True
     n_step = 1
-    print("Using " + str(num_processes) + " processors\n")
     device = torch.device("cuda")
     Q = DQN(env_init.observation_space.shape, env_init.action_space.n).to(device)
     QHat = DQN(env_init.observation_space.shape, env_init.action_space.n).to(device)
-    Q.share_memory()
-    QHat.share_memory()
     LEARNING_RATE = 1e-4
     optimizer = torch.optim.Adam(Q.parameters(), lr=LEARNING_RATE)
-    frame_id = mp.Value('i', 0)
-    processes = []
-    for rank in range(num_processes):
-        p = mp.Process(target=train,
-                       args=(Q, QHat, device, rank, num_processes, frame_id, exploration, double, optimizer, n_step))
-        p.start()
-        processes.append(p)
-    for p in processes:
-        p.join()
+    train(Q, QHat, device, exploration, double, optimizer, n_step)
     end = time.time()
     print(end - start)
