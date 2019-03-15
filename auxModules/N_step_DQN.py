@@ -154,7 +154,7 @@ class DQN(nn.Module):
         return self.fc(conv_out)
 
 
-def train(Q, QHat, exploration, double, optimizer,
+def train(Q, QHat, device, exploration, double, optimizer,
           n_step):  # double is a boolen defining whether we want to use doudle-DQN or not
     env = make_env('PongNoFrameskip-v4')
 
@@ -241,7 +241,7 @@ def train(Q, QHat, exploration, double, optimizer,
                 actionsV = torch.tensor(actions).to(device)
                 rewardsV = torch.tensor(rewards).to(device)
                 doneMask = torch.ByteTensor(dones).to(device)
-                gammaFactorV =  torch.ByteTensor(gammaFactor).to(device)
+                gammaFactorV =  torch.FloatTensor(gammaFactor).to(device)
                 # print(actionsV.shape)
 
                 stateActionValues = Q(observationsV).gather(1, actionsV.unsqueeze(-1)).squeeze(-1)
@@ -292,7 +292,7 @@ if __name__ == "__main__":
     start = time.time()
     exploration = ["softmax", 0.01]  # exploration belongs to {["e-greedy"], ["softmax", tau]}
     double = True
-    n_step = 1
+    n_step = 2
     device = torch.device("cuda")
     Q = DQN(env_init.observation_space.shape, env_init.action_space.n).to(device)
     QHat = DQN(env_init.observation_space.shape, env_init.action_space.n).to(device)
