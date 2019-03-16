@@ -233,4 +233,5 @@ def compareMethods(envName, nEpisodeAccuracy=100, threshold=0.8, nEpisodeMax=200
 
     # Save recap
     recap.to_csv("output/" + envName + ".csv")
+    return recap
 

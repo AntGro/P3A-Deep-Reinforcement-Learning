@@ -159,7 +159,7 @@ def train(Q, QHat, device, exploration, double, optimizer,
     env = make_env('PongNoFrameskip-v4')
 
     # Hyperparameters (mainly taken from Ch.6 of DRL Hands-on)
-    nEpisode = 750
+    TARGET_REWARD = 18.5
     GAMMA = 0.99
     EPSILON_0 = 1
     EPSILON_FINAL = 0.02
@@ -182,12 +182,13 @@ def train(Q, QHat, device, exploration, double, optimizer,
 
     # best mean reward for the last 100 episodes
     best_mean_reward = None
-
+    mean_reward = -float("Inf")
     local_frame_id = 0
-
+    step = 0
     # main loop
-    for step in range(nEpisode):
-        print("is at episode " + str(step) + " out of " + str(nEpisode))
+    while mean_reward < TARGET_REWARD:
+        step += 1
+        print("is at episode " + str(step))
         obs = env.reset()
         total_reward = 0
         for _ in range(MAX_ITER):

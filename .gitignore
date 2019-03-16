@@ -1,4 +1,6 @@
 venv
 .idea/
 Notebooks/.ipynb_checkpoints/
+Notebooks/timeitTest.ipynb
 Azure_config.txt
+DQL/autoencoder.py
