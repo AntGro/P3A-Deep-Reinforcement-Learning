@@ -291,8 +291,8 @@ def train(Q, QHat, device, exploration, double, optimizer,
 if __name__ == "__main__":
     env_init = make_env('PongNoFrameskip-v4')
     start = time.time()
-    exploration = ["softmax", 0.01]  # exploration belongs to {["e-greedy"], ["softmax", tau]}
-    double = False
+    exploration = ["e-greedy",0.01]  # exploration belongs to {["e-greedy"], ["softmax", tau]}
+    double = True
     n_step = 1 
     device = torch.device("cuda")
     Q = DQN(env_init.observation_space.shape, env_init.action_space.n).to(device)
