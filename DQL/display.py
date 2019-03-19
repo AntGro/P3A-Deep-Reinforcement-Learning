@@ -160,9 +160,7 @@ if __name__ == "__main__":
 
     device = torch.device("cuda")
     Q = DQN(env.observation_space.shape, env.action_space.n).to(device)
-    checkpoint = torch.load("DQN_saved_models/Pong_best.tar")
-    Q = torch.load(checkpoint["model_state_dict"])
-    #Q.load_state_dict(torch.load("DQN_saved_models\\Pong_best.tar", map_location=lambda storage, loc: storage))
+    Q.load_state_dict(torch.load("DQN_saved_models\\Pong_best.tar", map_location=lambda storage, loc: storage))
 
     state = env.reset()
 

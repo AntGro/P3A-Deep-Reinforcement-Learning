@@ -278,12 +278,13 @@ def train(Q, QHat, device, exploration, double, optimizer,
 
         # save model and update best_mean_reward
         if (best_mean_reward is None or best_mean_reward < mean_reward) and len(buffer) >= REPLAY_START_SIZE:
-            torch.save({
-                'game': step,
-                'model_state_dict': Q.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'loss': loss
-            }, "DQN_saved_models/Pong_best.tar")
+            torch.save(Q.state_dict(), "DQN_saved_models/Pong_best.dat")
+            # torch.save({
+            #     'game': step,
+            #     'model_state_dict': Q.state_dict(),
+            #     'optimizer_state_dict': optimizer.state_dict(),
+            #     'loss': loss
+            # }, "DQN_saved_models/Pong_best.tar")
             best_mean_reward = mean_reward
         print(step, mean_reward, total_reward, local_frame_id)
 
