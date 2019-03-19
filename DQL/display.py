@@ -156,7 +156,7 @@ FPS = 25
 if __name__ == "__main__":
     env = make_env('PongNoFrameskip-v4')
 
-    env = gym.wrappers.Monitor(env, "capture\\")
+    env = gym.wrappers.Monitor(env, "capture", force=true)
 
     device = torch.device("cuda")
     Q = DQN(env.observation_space.shape, env.action_space.n).to(device)
