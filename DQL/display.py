@@ -159,9 +159,10 @@ if __name__ == "__main__":
     env = gym.wrappers.Monitor(env, "capture\\")
 
     device = torch.device("cuda")
-    net = DQN(env.observation_space.shape, env.action_space.n).to(device)
-
-    net.load_state_dict(torch.load("DQN_saved_models\\Pong_best.tar", map_location=lambda storage, loc: storage))
+    Q = DQN(env.observation_space.shape, env.action_space.n).to(device)
+    checkpoint = torch.load("DQN_saved_models\\Pong_best.tar")
+    Q = torch.load(checkpoint["model_state_dict"])
+    #Q.load_state_dict(torch.load("DQN_saved_models\\Pong_best.tar", map_location=lambda storage, loc: storage))
 
     state = env.reset()
 
@@ -175,7 +176,7 @@ if __name__ == "__main__":
         env.render()
 
         state_v = torch.tensor(np.array([state], copy=False))
-        q_vals = net(state_v).data.numpy()[0]
+        q_vals = Q(state_v).data.numpy()[0]
         action = np.argmax(q_vals)
         c[action] += 1
         state, reward, done, _ = env.step(action)
