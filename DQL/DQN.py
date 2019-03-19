@@ -292,8 +292,8 @@ if __name__ == "__main__":
     env_init = make_env('PongNoFrameskip-v4')
     start = time.time()
     exploration = ["softmax",0.01]  # exploration belongs to {["e-greedy"], ["softmax", tau]}
-    double = True
-    n_step = 2 
+    double = False
+    n_step = 1 
     device = torch.device("cuda")
     Q = DQN(env_init.observation_space.shape, env_init.action_space.n).to(device)
     QHat = DQN(env_init.observation_space.shape, env_init.action_space.n).to(device)
