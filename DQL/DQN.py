@@ -283,7 +283,7 @@ def train(Q, QHat, device, exploration, double, optimizer,
                 'model_state_dict': Q.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': loss
-            }, "DQN_saved_models\\Pong_best.tar")
+            }, "DQN_saved_models/Pong_best.tar")
             best_mean_reward = mean_reward
         print(step, mean_reward, total_reward, local_frame_id)
 

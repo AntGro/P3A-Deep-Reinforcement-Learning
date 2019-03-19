@@ -156,11 +156,11 @@ FPS = 25
 if __name__ == "__main__":
     env = make_env('PongNoFrameskip-v4')
 
-    env = gym.wrappers.Monitor(env, "capture", force=true)
+    env = gym.wrappers.Monitor(env, "capture", force=True)
 
     device = torch.device("cuda")
     Q = DQN(env.observation_space.shape, env.action_space.n).to(device)
-    checkpoint = torch.load("DQN_saved_models\\Pong_best.tar")
+    checkpoint = torch.load("DQN_saved_models/Pong_best.tar")
     Q = torch.load(checkpoint["model_state_dict"])
     #Q.load_state_dict(torch.load("DQN_saved_models\\Pong_best.tar", map_location=lambda storage, loc: storage))
 
